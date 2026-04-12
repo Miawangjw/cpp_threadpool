@@ -19,7 +19,7 @@
 #include <thread>
 #include <future>
 #include <chrono>
-
+#include "TaskObserver.h"
 const int TASK_MAX_THRESHOLD = INT16_MAX;
 const int THREAD_MAX_THRESHOLD = 100;
 const int THREAD_MAX_IDLE_TIME = 60;
@@ -114,7 +114,7 @@ public:
 	//给线程池提交任务
 	//使用可变参数模板编程使得submitTask接收任意参数
 	template<typename Func, typename... Args>
-	auto submitTask(Func&& func, Args&&... args) -> std::future<decltype(func(args...))> {
+	auto submitTask(Func&& func,std::shared_ptr<TaskObserver> observer, Args&&... args) -> std::future<decltype(func(args...))> {
 		//打包任务，放入任务队列
 		using ReturnType = decltype(func(args...));
 		auto task = std::make_shared<std::packaged_task<ReturnType()>>(
@@ -131,6 +131,10 @@ public:
 			});
 
 		if (!success) {
+			//通知失败
+			if (observer) {
+				observer->OnTaskFailed();
+			}
 			// 构造一个“立即就绪”的 future
 			std::packaged_task<ReturnType()> fallbackTask(
 				[]() -> ReturnType {
@@ -139,7 +143,6 @@ public:
 					}
 				}
 			);
-
 			auto fut = fallbackTask.get_future();
 			fallbackTask();  // 立即执行，让 future ready
 			return fut;
@@ -147,8 +150,13 @@ public:
 
 		//如果有空余， 把任务放入任务队列中
 		//taskQueue_.emplace(spTask);
-		taskQueue_.emplace([task]() { (*task)(); });
-		taskSize_.fetch_add(1);
+		taskQueue_.emplace([task, observer]() {
+			(*task)();
+			if (observer) {
+				observer->OnTaskFinished();
+			}
+			});
+		taskSize_++;
 
 		//因为放了新任务，队列不空，notify其他线程
 		//lock.unlock();          // 提前释放锁优化

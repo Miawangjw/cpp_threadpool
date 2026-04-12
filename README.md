@@ -31,13 +31,6 @@
   - `fixed`：固定线程数
   - `cached`：动态扩展线程
 
-##  项目结构
-cpp_threadpool/
-├── include/ # 头文件
-├── src/ # 源文件
-├── test/ # 测试代码
-├── README.md
-
 ##  使用示例
 
 ```cpp

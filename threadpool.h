@@ -152,7 +152,7 @@ public:
 
 		//因为放了新任务，队列不空，notify其他线程
 		//lock.unlock();          // 提前释放锁优化
-		notEmpty_.notify_all();
+		notEmpty_.notify_one();
 
 		//根据任务数量和空闲线程数量，动态增加或减少线程数量
 		if (poolMode_ == ThreadPoolMode::MODE_CACHED
@@ -216,7 +216,7 @@ private:
 						threads_.erase(threadId);
 						curThreadSize_--;
 						idleThreadSize_--;
-						exitCond_.notify_all();
+						exitCond_.notify_one();
 						return;
 					}
 					if (poolMode_ == ThreadPoolMode::MODE_CACHED) {
@@ -251,11 +251,11 @@ private:
 
 				//如果取完队列中仍然有剩余任务，通知所有线程
 				if (taskQueue_.size() > 0) {
-					notEmpty_.notify_all();
+					notEmpty_.notify_one();
 				}
 
 				//通知可以提交任务
-				notFull_.notify_all();
+				notFull_.notify_one();
 			}
 			//作用域自动把锁释放,执行任务不需要上锁
 
